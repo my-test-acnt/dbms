@@ -1,0 +1,491 @@
+Book Collection using mongodb
+
+Microsoft Windows [Version 10.0.26100.2161]
+(c) Microsoft Corporation. All rights reserved.
+
+C:\Users\sahad>mongosh
+Current Mongosh Log ID: 672ef40b53b37311a70d818f
+Connecting to:          mongodb://127.0.0.1:27017/?directConnection=true&serverSelectionTimeoutMS=2000&appName=mongosh+2.3.3
+Using MongoDB:          8.0.0
+Using Mongosh:          2.3.3
+
+For mongosh info see: https://www.mongodb.com/docs/mongodb-shell/
+
+------
+   The server generated these startup warnings when booting
+   2024-11-07T16:00:42.404+05:30: Access control is not enabled for the database. Read and write access to data and configuration is unrestricted
+------
+
+test> use sahadevdb
+switched to db sahadevdb
+sahadevdb> db.createCollection("books")
+{ ok: 1 }
+sahadevdb> db.books.insertMany([
+   { "Title": "The Great Gatsby", "Author_name": "F. Scott Fitzgerald", "Borrowed_status": "True", "Price": 350 },
+   { "Title": "To Kill a Mockingbird", "Author_name": "Harper Lee", "Borrowed_status": "False", "Price": 200 },
+   { "Title": "1984", "Author_name": "George Orwell", "Borrowed_status": "True", "Price": 400 },
+   { "Title": "Moby Dick", "Author_name": "Herman Melville", "Borrowed_st
+atus": "False", "Price": 250 },
+...   { "Title": "Brave New World", "Author_name": "Aldous Huxley", "Borrowed_status": "True", "Price": 320 }
+... ]);
+{
+  acknowledged: true,
+  insertedIds: {
+    '0': ObjectId('672ef44d53b37311a70d8190'),
+    '1': ObjectId('672ef44d53b37311a70d8191'),
+    '2': ObjectId('672ef44d53b37311a70d8192'),
+    '3': ObjectId('672ef44d53b37311a70d8193'),
+    '4': ObjectId('672ef44d53b37311a70d8194')
+  }
+}
+sahadevdb> db.books.mapReduce(
+...   function() {
+...     emit(this.Author_name, this.Title);
+...   },
+...   function(key, values) {
+...     return values;
+...   },
+...   {
+...     out: { inline: 1 }
+...   }
+... );
+DeprecationWarning: Collection.mapReduce() is deprecated. Use an aggregation instead.
+See https://docs.mongodb.com/manual/core/map-reduce for details.
+{
+  results: [
+    {
+      _id: 'F. Scott Fitzgerald',
+      value: [ 'The Great Gatsby', 'The Great Gatsby' ]
+    },
+    { _id: 'Herman Melville', value: [ 'Moby Dick', 'Moby Dick' ] },
+    {
+      _id: 'Aldous Huxley',
+      value: [ 'Brave New World', 'Brave New World' ]
+    },
+    {
+      _id: 'Harper Lee',
+      value: [ 'To Kill a Mockingbird', 'To Kill a Mockingbird' ]
+    },
+    { _id: 'George Orwell', value: [ '1984', '1984' ] }
+  ],
+  ok: 1
+}
+sahadevdb> db.books.mapReduce(
+...   function() {
+...     if (this.Borrowed_status === "True") {
+...       emit(this.Author_name, this.Title);
+...     }
+...   },
+...   function(key, values) {
+...     return values;
+...   },
+...   {
+...     out: { inline: 1 }
+...   }
+... );
+{
+  results: [
+    { _id: 'George Orwell', value: [ '1984', '1984' ] },
+    {
+      _id: 'F. Scott Fitzgerald',
+      value: [ 'The Great Gatsby', 'The Great Gatsby' ]
+    },
+    {
+      _id: 'Aldous Huxley',
+      value: [ 'Brave New World', 'Brave New World' ]
+    }
+  ],
+  ok: 1
+}
+sahadevdb> db.books.mapReduce(
+...   function() {
+...     if (this.Price > 300) {
+...       emit(this.Author_name, this.Title);
+...     }
+...   },
+...   function(key, values) {
+...     return values;
+...   },
+...   {
+...     out: { inline: 1 }
+...   }
+... );
+{
+  results: [
+    { _id: 'George Orwell', value: [ '1984', '1984' ] },
+    {
+      _id: 'Aldous Huxley',
+      value: [ 'Brave New World', 'Brave New World' ]
+    },
+    {
+      _id: 'F. Scott Fitzgerald',
+      value: [ 'The Great Gatsby', 'The Great Gatsby' ]
+    }
+  ],
+  ok: 1
+}
+sahadevdb> db.author_books.find();
+[
+  { _id: 'Harper Lee', value: [ 'To Kill a Mockingbird' ] },
+  { _id: 'Herman Melville', value: [ 'Moby Dick' ] },
+  { _id: 'Aldous Huxley', value: [ 'Brave New World' ] },
+  { _id: 'F. Scott Fitzgerald', value: [ 'The Great Gatsby' ] },
+  { _id: 'George Orwell', value: [ '1984' ] }
+]
+sahadevdb> db.author_books_above_300.find();
+[
+  { _id: 'George Orwell', value: [ '1984' ] },
+  { _id: 'F. Scott Fitzgerald', value: [ 'The Great Gatsby' ] },
+  { _id: 'Aldous Huxley', value: [ 'Brave New World' ] }
+]
+sahadevdb> db.author_borrowed_books.find();
+[
+  { _id: 'George Orwell', value: [ '1984' ] },
+  { _id: 'Aldous Huxley', value: [ 'Brave New World' ] },
+  { _id: 'F. Scott Fitzgerald', value: [ 'The Great Gatsby' ] }
+]
+
+
+Sql join queries
+
+
+mysql> show databases;
++--------------------+
+| Database           |
++--------------------+
+| ass2               |
+| ass3               |
+| assign2            |
+| db                 |
+| db1                |
+| information_schema |
+| loginpage          |
+| mysql              |
+| performance_schema |
+| sys                |
++--------------------+
+10 rows in set (0.00 sec)
+
+mysql> use db1;
+Database changed
+mysql> CREATE TABLE Manager (
+    ->     Manager_id INT PRIMARY KEY,
+    ->     Manager_name VARCHAR(50)
+    -> );
+Query OK, 0 rows affected (0.04 sec)
+
+mysql> CREATE TABLE Locations (
+    ->     Location_id INT PRIMARY KEY,
+    ->     Street_address VARCHAR(100),
+    ->     Postal_code VARCHAR(20),
+    ->     City VARCHAR(50),
+    ->     State VARCHAR(50),
+    ->     Country_id CHAR(2)
+    -> );
+Query OK, 0 rows affected (0.04 sec)
+
+mysql> CREATE TABLE Departments (
+    ->     Department_id INT PRIMARY KEY,
+    ->     Department_name VARCHAR(50),
+    ->     Manager_id INT,
+    ->     Location_id INT,
+    ->     FOREIGN KEY (Manager_id) REFERENCES Manager(Manager_id),
+    ->     FOREIGN KEY (Location_id) REFERENCES Locations(Location_id)
+    -> );
+Query OK, 0 rows affected (0.07 sec)
+
+mysql>
+mysql> CREATE TABLE Employee (
+    ->     Employee_id INT PRIMARY KEY,
+    ->     First_name VARCHAR(50),
+    ->     Last_name VARCHAR(50),
+    ->     Hire_date DATE,
+    ->     Salary DECIMAL(10, 2),
+    ->     Job_title VARCHAR(50),
+    ->     Manager_id INT,
+    ->     Department_id INT,
+    ->     FOREIGN KEY (Manager_id) REFERENCES Manager(Manager_id),
+    ->     FOREIGN KEY (Department_id) REFERENCES Departments(Department_id)
+
+    -> );
+Query OK, 0 rows affected (0.07 sec)
+
+mysql> show tables;
++---------------+
+| Tables_in_db1 |
++---------------+
+| departments   |
+| employee      |
+| locations     |
+| manager       |
+| student       |
++---------------+
+5 rows in set (0.00 sec)
+
+mysql> ^C
+mysql> INSERT INTO Manager (Manager_id, Manager_name) VALUES
+    -> (1, 'Amit Sharma'),
+    -> (2, 'Priya Singh'),
+    -> (3, 'Rajesh Patel');
+Query OK, 3 rows affected (0.02 sec)
+Records: 3  Duplicates: 0  Warnings: 0
+
+mysql> INSERT INTO Locations (Location_id, Street_address, Postal_code, City, State, Country_id) VALUES
+    -> (1, '15 MG Road', '110001', 'New Delhi', 'Delhi', 'IN'),
+    -> (2, '22 Bhopal Road', '452010', 'Bhopal', 'Madhya Pradesh', 'IN'),
+    -> (3, '45 Juhu Beach', '400049', 'Mumbai', 'Maharashtra', 'IN');
+Query OK, 3 rows affected (0.02 sec)
+Records: 3  Duplicates: 0  Warnings: 0
+
+mysql> INSERT INTO Departments (Department_id, Department_name, Manager_id, Location_id) VALUES
+    -> (1, 'Software Development', 1, 1),
+    -> (2, 'Human Resources', 2, 2),
+    -> (3, 'Sales and Marketing', 3, 3);
+Query OK, 3 rows affected (0.02 sec)
+Records: 3  Duplicates: 0  Warnings: 0
+
+mysql> INSERT INTO Employee (Employee_id, First_name, Last_name, Hire_date, Salary, Job_title, Manager_id, Department_id) VALUES
+    -> (1, 'Ravi', 'Kumar', '2020-01-15', 75000, 'Software Engineer', 1, 1),
+
+    -> (2, 'Neha', 'Singh', '2021-02-20', 80000, 'HR Manager', 2, 2),
+    -> (3, 'Amit', 'Verma', '2019-05-25', 95000, 'HR Specialist', 2, 2),
+    -> (4, 'Vikram', 'Sharma', '2020-06-10', 72000, 'Junior Developer', 1, 1),
+    -> (5, 'Anjali', 'Patel', '2021-03-18', 110000, 'Senior Engineer', 1, 1),
+    -> (6, 'Rohit', 'Joshi', '2018-07-02', 86000, 'Product Marketing Manager', 3, 3);
+Query OK, 6 rows affected (0.02 sec)
+Records: 6  Duplicates: 0  Warnings: 0
+
+mysql> SELECT * FROM Employee;
++-------------+------------+-----------+------------+-----------+---------------------------+------------+---------------+
+| Employee_id | First_name | Last_name | Hire_date  | Salary    | Job_title                 | Manager_id | Department_id |
++-------------+------------+-----------+------------+-----------+---------------------------+------------+---------------+
+|           1 | Ravi       | Kumar     | 2020-01-15 |  75000.00 | Software Engineer         |          1 |             1 |
+|           2 | Neha       | Singh     | 2021-02-20 |  80000.00 | HR Manager                |          2 |             2 |
+|           3 | Amit       | Verma     | 2019-05-25 |  95000.00 | HR Specialist             |          2 |             2 |
+|           4 | Vikram     | Sharma    | 2020-06-10 |  72000.00 | Junior Developer          |          1 |             1 |
+|           5 | Anjali     | Patel     | 2021-03-18 | 110000.00 | Senior Engineer           |          1 |             1 |
+|           6 | Rohit      | Joshi     | 2018-07-02 |  86000.00 | Product Marketing Manager |          3 |             3 |
++-------------+------------+-----------+------------+-----------+---------------------------+------------+---------------+
+6 rows in set (0.01 sec)
+
+mysql> SELECT First_name, Last_name, Salary
+    -> FROM Employee
+    -> WHERE Salary > (SELECT Salary FROM Employee WHERE Last_name = 'Singh');
++------------+-----------+-----------+
+| First_name | Last_name | Salary    |
++------------+-----------+-----------+
+| Amit       | Verma     |  95000.00 |
+| Anjali     | Patel     | 110000.00 |
+| Rohit      | Joshi     |  86000.00 |
++------------+-----------+-----------+
+3 rows in set (0.00 sec)
+
+mysql> SELECT E.First_name, E.Last_name
+    -> FROM Employee E
+    -> JOIN Departments D ON E.Department_id = D.Department_id
+    -> JOIN Locations L ON D.Location_id = L.Location_id
+    -> WHERE E.Manager_id IS NOT NULL
+    ->   AND L.Country_id = 'IN';
++------------+-----------+
+| First_name | Last_name |
++------------+-----------+
+| Ravi       | Kumar     |
+| Vikram     | Sharma    |
+| Anjali     | Patel     |
+| Neha       | Singh     |
+| Amit       | Verma     |
+| Rohit      | Joshi     |
++------------+-----------+
+6 rows in set (0.00 sec)
+
+mysql> SELECT First_name, Last_name, Salary
+    -> FROM Employee
+    -> WHERE Salary > (SELECT AVG(Salary) FROM Employee);
++------------+-----------+-----------+
+| First_name | Last_name | Salary    |
++------------+-----------+-----------+
+| Amit       | Verma     |  95000.00 |
+| Anjali     | Patel     | 110000.00 |
++------------+-----------+-----------+
+2 rows in set (0.00 sec)
+
+mysql> SELECT E.Employee_id, E.Last_name AS Employee_Last_name, E.Manager_id, M.Manager_name AS Manager_Last_name
+    -> FROM Employee E
+    -> JOIN Manager M ON E.Manager_id = M.Manager_id;
++-------------+--------------------+------------+-------------------+
+| Employee_id | Employee_Last_name | Manager_id | Manager_Last_name |
++-------------+--------------------+------------+-------------------+
+|           1 | Kumar              |          1 | Amit Sharma       |
+|           2 | Singh              |          2 | Priya Singh       |
+|           3 | Verma              |          2 | Priya Singh       |
+|           4 | Sharma             |          1 | Amit Sharma       |
+|           5 | Patel              |          1 | Amit Sharma       |
+|           6 | Joshi              |          3 | Rajesh Patel      |
++-------------+--------------------+------------+-------------------+
+6 rows in set (0.00 sec)
+
+mysql> SELECT First_name, Last_name, Hire_date
+    -> FROM Employee
+    -> WHERE Hire_date > (SELECT Hire_date FROM Employee WHERE Last_name = 'Singh');
++------------+-----------+------------+
+| First_name | Last_name | Hire_date  |
++------------+-----------+------------+
+| Anjali     | Patel     | 2021-03-18 |
++------------+-----------+------------+
+1 row in set (0.01 sec)
+
+mysql>
+
+Cursor
+
+mysql> use sst;
+Database changed
+mysql> CREATE TABLE Employee (
+    ->     Emp_id INT PRIMARY KEY,
+    ->     Emp_Name VARCHAR(100),
+    ->     Salary DECIMAL(10, 2)
+    -> );
+Query OK, 0 rows affected (0.05 sec)
+
+mysql> INSERT INTO Employee (Emp_id, Emp_Name, Salary) VALUES (1, 'Rajesh Kumar', 60000.00);
+Query OK, 1 row affected (0.02 sec)
+
+mysql> INSERT INTO Employee (Emp_id, Emp_Name, Salary) VALUES (2, 'Priya Sharma', 45000.00);
+Query OK, 1 row affected (0.01 sec)
+
+mysql> INSERT INTO Employee (Emp_id, Emp_Name, Salary) VALUES (3, 'Amit Verma', 70000.00);
+Query OK, 1 row affected (0.01 sec)
+
+mysql> INSERT INTO Employee (Emp_id, Emp_Name, Salary) VALUES (4, 'Suman Patel', 55000.00);
+Query OK, 1 row affected (0.01 sec)
+
+mysql> INSERT INTO Employee (Emp_id, Emp_Name, Salary) VALUES (5, 'Neha Gupta', 80000.00);
+Query OK, 1 row affected (0.01 sec)
+
+mysql> INSERT INTO Employee (Emp_id, Emp_Name, Salary) VALUES (6, 'Vikram Singh', 40000.00);
+Query OK, 1 row affected (0.01 sec)
+
+mysql>
+mysql> COMMIT;
+
+mysql> DELIMITER $$
+mysql>
+mysql> CREATE PROCEDURE GetEmployeesWithHighSalary()
+    -> BEGIN
+    ->     DECLARE done INT DEFAULT 0;
+    ->     DECLARE emp_id INT;
+    ->     DECLARE emp_name VARCHAR(100);
+    ->     DECLARE emp_salary DECIMAL(10, 2);
+    ->
+    ->     DECLARE emp_cursor CURSOR FOR
+    ->         SELECT Emp_id, Emp_Name, Salary
+    ->         FROM Employee
+    ->         WHERE Salary > 50000;
+    ->
+    ->     DECLARE CONTINUE HANDLER FOR NOT FOUND SET done = 1;
+    ->
+    ->     OPEN emp_cursor;
+    ->
+    ->     read_loop: LOOP
+    ->         FETCH emp_cursor INTO emp_id, emp_name, emp_salary;
+    ->
+    ->         IF done THEN
+    ->             LEAVE read_loop;
+    ->         END IF;
+    ->
+    ->         SELECT emp_id AS "Employee ID", emp_name AS "Employee Name", emp_salary AS "Salary";
+    ->     END LOOP;
+    ->
+    ->     CLOSE emp_cursor;
+    -> END$$
+Query OK, 0 rows affected (0.02 sec)
+
+mysql>
+mysql> DELIMITER ;
+mysql> CALL GetEmployeesWithHighSalary();
++-------------+---------------+----------+
+| Employee ID | Employee Name | Salary   |
++-------------+---------------+----------+
+|        NULL | NULL          | 60000.00 |
++-------------+---------------+----------+
+1 row in set (0.01 sec)
+
++-------------+---------------+----------+
+| Employee ID | Employee Name | Salary   |
++-------------+---------------+----------+
+|        NULL | NULL          | 70000.00 |
++-------------+---------------+----------+
+1 row in set (0.01 sec)
+
++-------------+---------------+----------+
+| Employee ID | Employee Name | Salary   |
++-------------+---------------+----------+
+|        NULL | NULL          | 55000.00 |
++-------------+---------------+----------+
+1 row in set (0.02 sec)
+
++-------------+---------------+----------+
+| Employee ID | Employee Name | Salary   |
++-------------+---------------+----------+
+|        NULL | NULL          | 80000.00 |
++-------------+---------------+----------+
+1 row in set (0.02 sec)
+
+mysql> DELIMITER $$
+mysql>
+mysql> CREATE PROCEDURE GetTotalEmployees()
+    -> BEGIN
+    ->     DECLARE total_employees INT;
+    ->
+    ->     SELECT COUNT(*) INTO total_employees
+    ->     FROM Employee;
+    ->
+    ->     SELECT total_employees AS "Total Employees";
+    -> END$$
+Query OK, 0 rows affected (0.01 sec)
+
+mysql>
+mysql> DELIMITER ;
+mysql> CALL GetTotalEmployees();
++-----------------+
+| Total Employees |
++-----------------+
+|               6 |
++-----------------+
+1 row in set (0.01 sec)
+
+Query OK, 0 rows affected (0.02 sec)
+
+mysql> DELIMITER $$
+mysql>
+mysql> CREATE PROCEDURE GetEmployeeSalaryById(IN emp_id_input INT)
+    -> BEGIN
+    ->     DECLARE emp_salary DECIMAL(10, 2);
+    ->
+    ->     DECLARE emp_cursor CURSOR FOR
+    ->         SELECT Salary
+    ->         FROM Employee
+    ->         WHERE Emp_id = emp_id_input;
+    ->
+    ->     DECLARE CONTINUE HANDLER FOR NOT FOUND SET emp_salary = NULL;
+    ->
+    ->     OPEN emp_cursor;
+    ->     FETCH emp_cursor INTO emp_salary;
+    ->
+    ->     IF emp_salary IS NULL THEN
+    ->         SELECT CONCAT('No employee found with ID ', emp_id_input) AS "Error";
+    ->     ELSE
+    ->         SELECT CONCAT('Salary of Employee ID ', emp_id_input, ' is: ', emp_salary) AS "Employee Salary";
+    ->     END IF;
+    ->
+    ->     CLOSE emp_cursor;
+    -> END$$
+
+| Employee Salary                         |
+|-----------------------------------------|
+| Salary of Employee ID 1 is: 60000.00    |
+
+
+| Error                                    |
+|------------------------------------------|
+| No employee found with ID 999            |

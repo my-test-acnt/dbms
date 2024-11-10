@@ -1,0 +1,131 @@
+18.Trigger
+a) Write a update, delete trigger on clientmstr table. The System should keep track of the
+records that ARE BEING updated or deleted. The old value of updated or deleted records
+should be added in audit_trade table. (separate implementation using both row and statement
+triggers).
+ANSWER:-
+
+CREATE DATABASE practest;
+********************************************************************************************************
+Use practest;
+********************************************************************************************************
+CREATE TABLE clientmstr (
+    client_id INT PRIMARY KEY,
+    client_name VARCHAR(100),
+    client_email VARCHAR(100),
+    client_phone VARCHAR(20)
+);
+
+CREATE TABLE audit_trade (
+    audit_id INT AUTO_INCREMENT PRIMARY KEY,
+    client_id INT,
+    client_name VARCHAR(100),
+    client_email VARCHAR(100),
+    client_phone VARCHAR(20),
+    operation VARCHAR(10),    -- 'UPDATE' or 'DELETE'
+    operation_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+********************************************************************************************************
+INSERT INTO clientmstr (client_id, client_name, client_email, client_phone) VALUES
+(1, 'Aarav Sharma', 'aarav.sharma@example.com', '987-654-3210'),
+(2, 'Priya Gupta', 'priya.gupta@example.com', '998-765-4321'),
+(3, 'Rahul Patel', 'rahul.patel@example.com', '967-843-2101');
+********************************************************************************************************
+DELIMITER $$
+
+CREATE TRIGGER after_update_clientmstr_row
+AFTER UPDATE ON clientmstr
+FOR EACH ROW
+BEGIN
+    INSERT INTO audit_trade (client_id, client_name, client_email, client_phone, operation)
+    VALUES (OLD.client_id, OLD.client_name, OLD.client_email, OLD.client_phone, 'UPDATE');
+END$$
+
+DELIMITER ;
+********************************************************************************************************
+DELIMITER $$
+
+CREATE TRIGGER after_delete_clientmstr_row
+AFTER DELETE ON clientmstr
+FOR EACH ROW
+BEGIN
+    INSERT INTO audit_trade (client_id, client_name, client_email, client_phone, operation)
+    VALUES (OLD.client_id, OLD.client_name, OLD.client_email, OLD.client_phone, 'DELETE');
+END$$
+
+DELIMITER ;
+********************************************************************************************************
+UPDATE clientmstr
+SET client_name = 'Siddhi Seth', client_email = 'siddhi.seth@gmail.com'
+WHERE client_id = 1;
+********************************************************************************************************
+DELETE FROM clientmstr WHERE client_id = 2;
+********************************************************************************************************
+SELECT * FROM audit_trade;
+========================================================================================================
+========================================================================================================
+
+
+
+
+
+
+
+18.Trigger
+b) Write a before trigger for Insert, update event considering following requirement:
+Emp(e_no, e_name, salary) I) Trigger action should be initiated when salary is tried to be
+inserted is less than Rs. 50,000/- II) Trigger action should be initiated when salary is tried to be
+updated for value less than Rs. 50,000/- Action should be rejection of update or Insert
+operation by displaying appropriate error message. Also the new values expected to be inserted
+will be stored in new table Tracking(e_no, salary).
+ANSWER:-
+
+CREATE DATABASE practest;
+********************************************************************************************************
+Use practest;
+********************************************************************************************************
+CREATE TABLE Emp (
+    e_no INT PRIMARY KEY,
+    e_name VARCHAR(50),
+    salary DECIMAL(10, 2)
+);
+********************************************************************************************************
+DELIMITER $$
+
+CREATE TRIGGER before_insert_emp
+BEFORE INSERT ON Emp
+FOR EACH ROW
+BEGIN
+    IF NEW.salary < 50000 THEN
+        SIGNAL SQLSTATE '45000' 
+        SET MESSAGE_TEXT = 'Salary cannot be less than Rs. 50,000 for new employees.';
+    END IF;
+END$$
+DELIMITER ;
+*********************************************************************************************************
+DELIMITER $$
+
+CREATE TRIGGER before_update_emp
+BEFORE UPDATE ON Emp
+FOR EACH ROW
+BEGIN
+    IF NEW.salary < 50000 THEN
+        SIGNAL SQLSTATE '45000' 
+        SET MESSAGE_TEXT = 'Salary cannot be reduced to less than Rs. 50,000.';
+    END IF;
+END$$
+
+DELIMITER ;
+*********************************************************************************************************
+INSERT INTO Emp (e_no, e_name, salary) VALUES (1, 'Rahul Singh', 60000);
+INSERT INTO Emp (e_no, e_name, salary) VALUES (2, 'Anita Deshmukh', 75000);
+INSERT INTO Emp (e_no, e_name, salary) VALUES (3, 'Vikas Kumar', 52000);
+*********************************************************************************************************
+INSERT INTO Emp (e_no, e_name, salary) VALUES (4, 'Priya Mehta', 45000);
+-- Expected result: An error message saying, "Salary cannot be less than Rs. 50,000 for new employees."
+*********************************************************************************************************
+UPDATE Emp SET salary = 40000 WHERE e_no = 1;
+--Expected result: An error message saying, "Salary cannot be reduced to less than Rs. 50,000."
+
+
+

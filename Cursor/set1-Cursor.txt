@@ -1,0 +1,515 @@
+16. Cursor (Any Two) 
+a) The bank manager has decided to activate all those accounts which were previously marked as  inactive for performing no transaction in last 365 days. Write a PL/SQ block (using implicit  cursor) to update the status of account, display an approximate message based on the no. of rows  affected by the update. (Use of %FOUND, %NOTFOUND, %ROWCOUNT) .
+
+
+CREATE TABLE Account (
+    Account_No INT PRIMARY KEY,
+    Cust_Name VARCHAR(50),
+    Balance DECIMAL(15, 2),
+    Status ENUM('active', 'inactive') DEFAULT 'inactive',
+    Last_Transaction_Date DATE
+);
+
+
+INSERT INTO Account (Account_No, Cust_Name, Balance, Status, Last_Transaction_Date)
+VALUES 
+    (101, 'Alice Smith', 5000.00, 'inactive', DATE_SUB(CURDATE(), INTERVAL 400 DAY)),
+    (102, 'Bob Jones', 3000.00, 'inactive', DATE_SUB(CURDATE(), INTERVAL 370 DAY)),
+    (103, 'Charlie Brown', 20000.00, 'active', DATE_SUB(CURDATE(), INTERVAL 100 DAY)),
+    (104, 'Diana Prince', 1000.00, 'inactive', DATE_SUB(CURDATE(), INTERVAL 365 DAY)),
+    (105, 'Ethan Hunt', 2500.00, 'inactive', DATE_SUB(CURDATE(), INTERVAL 380 DAY));
+
+
+
+DELIMITER //
+
+CREATE PROCEDURE Activate_Inactive_Accounts()
+BEGIN
+    DECLARE num_affected INT DEFAULT 0;
+
+    -- Update the status of inactive accounts with no transactions in the last 365 days
+    UPDATE Account
+    SET Status = 'active'
+    WHERE Status = 'inactive'
+      AND DATEDIFF(CURDATE(), Last_Transaction_Date) > 365;
+
+    -- Check the number of affected rows
+    SET num_affected = ROW_COUNT();
+
+    -- Display appropriate messages based on the number of rows affected
+    IF num_affected > 0 THEN
+        SELECT CONCAT('Number of accounts activated: ', num_affected) AS Message;
+    ELSE
+        SELECT 'No inactive accounts found for activation.' AS Message;
+    END IF;
+END //
+
+DELIMITER ;
+
+CALL Activate_Inactive_Accounts();
+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+
+b)Organization has decided to increase the salary of employees by 10% of existing salary, who  are having salary less than average salary of organization, Whenever such salary updates takes  place, a record for the same is maintained in the increment_salary table. 
+
+
+-- Create the employees table
+CREATE TABLE employees (
+    emp_id INT PRIMARY KEY,
+    name VARCHAR(50),
+    salary DECIMAL(10, 2)
+);
+
+-- Insert sample data into the employees table
+INSERT INTO employees (emp_id, name, salary) VALUES (1, 'John Doe', 30000);
+INSERT INTO employees (emp_id, name, salary) VALUES (2, 'Jane Smith', 25000);
+INSERT INTO employees (emp_id, name, salary) VALUES (3, 'Alex Johnson', 50000);
+INSERT INTO employees (emp_id, name, salary) VALUES (4, 'Emily Davis', 60000);
+INSERT INTO employees (emp_id, name, salary) VALUES (5, 'Michael Brown', 45000);
+
+
+-- Create the increment_salary table
+CREATE TABLE increment_salary (
+    emp_id INT PRIMARY KEY,
+    old_salary DECIMAL(10, 2),
+    new_salary DECIMAL(10, 2),
+    increment_date DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Set the delimiter for the stored procedure
+DELIMITER //
+
+-- Create the stored procedure to update salaries and log increments
+CREATE PROCEDURE UpdateEmployeeSalaries()
+BEGIN
+    DECLARE v_avg_salary DECIMAL(10, 2);
+    DECLARE v_emp_id INT;
+    DECLARE v_old_salary DECIMAL(10, 2);
+    DECLARE done INT DEFAULT 0;
+
+    -- Declare cursor to select employees with a salary below the average
+    DECLARE emp_cursor CURSOR FOR 
+        SELECT emp_id, salary FROM employees WHERE salary < v_avg_salary;
+    
+    DECLARE CONTINUE HANDLER FOR NOT FOUND SET done = 1;
+
+    -- Calculate the average salary of the organization
+    SELECT AVG(salary) INTO v_avg_salary FROM employees;
+
+    -- Open the cursor
+    OPEN emp_cursor;
+
+    -- Loop through each employee whose salary is below the average
+    read_loop: LOOP
+        FETCH emp_cursor INTO v_emp_id, v_old_salary;
+        
+        IF done THEN
+            LEAVE read_loop;
+        END IF;
+
+        -- Update the salary by 10%
+        UPDATE employees
+        SET salary = salary * 1.10
+        WHERE emp_id = v_emp_id;
+
+        -- Insert the old and new salary into increment_salary table
+        INSERT INTO increment_salary (emp_id, old_salary, new_salary, increment_date)
+        VALUES (v_emp_id, v_old_salary, v_old_salary * 1.10, CURRENT_TIMESTAMP);
+    END LOOP;
+
+    -- Close the cursor
+    CLOSE emp_cursor;
+
+    -- Confirmation message
+    SELECT CONCAT("Salary increments processed and logged for employees with salaries below ", v_avg_salary) AS Message;
+END //
+
+-- Reset the delimiter
+DELIMITER ;
+
+-- Call the procedure to execute the updates
+CALL UpdateEmployeeSalaries();
+
+------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+
+c) Write PL/SQL block using explicit cursor for following requirements: College has decided to  mark all those students detained (D) who are having attendance less than 75%. Whenever such  update takes place, a record for the same is maintained in the D_Stud table. create table  stud21(roll number(4), att number(4), status varchar(1)); 
+
+CREATE TABLE stud21 (
+    roll INT(4),
+    att INT(4),
+    status CHAR(1)
+);
+
+
+CREATE TABLE D_Stud (
+    roll INT(4),
+    att INT(4),
+    status CHAR(1),
+    update_date DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+
+DELIMITER $$
+
+CREATE PROCEDURE mark_detained_students()
+BEGIN
+    DECLARE done INT DEFAULT 0;
+    DECLARE v_roll INT;
+    DECLARE v_att INT;
+    
+    -- Declare the cursor to fetch students with attendance < 75%
+    DECLARE student_cursor CURSOR FOR
+        SELECT roll, att FROM stud21 WHERE att < 75;
+    
+    -- Declare the continue handler
+    DECLARE CONTINUE HANDLER FOR NOT FOUND SET done = 1;
+    
+    -- Open the cursor
+    OPEN student_cursor;
+    
+    -- Start the loop to fetch the student records
+    read_loop: LOOP
+        FETCH student_cursor INTO v_roll, v_att;
+        
+        -- Exit when no more records are found
+        IF done THEN
+            LEAVE read_loop;
+        END IF;
+        
+        -- Update the student's status to 'D' (detained)
+        UPDATE stud21
+        SET status = 'D'
+        WHERE roll = v_roll;
+        
+        -- Insert into the D_Stud table
+        INSERT INTO D_Stud (roll, att, status, update_date)
+        VALUES (v_roll, v_att, 'D', NOW());
+    END LOOP;
+    
+    -- Close the cursor
+    CLOSE student_cursor;
+
+END$$
+
+DELIMITER ;
+
+CALL mark_detained_students();
+
+------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+
+Write a PL/SQL block of code using parameterized Cursor, that will merge the data available  in the newly created table N_RollCall with the data available in the table O_RollCall. If the  data in the first table already exist in the second table then that data should be skipped. output:
+c)Write the PL/SQL block for following requirements using parameterized Cursor: Consider  table EMP(e_no, d_no, Salary), department wise average salary should be inserted into new  table dept_salary(d_no, Avg_salary).
+
+
+
+
+-- Table N_RollCall: Stores roll call information with rollcall_id, emp_id, and rollcall_date
+CREATE TABLE N_RollCall (
+    rollcall_id INT PRIMARY KEY,
+    emp_id INT,
+    rollcall_date DATE
+);
+
+-- Table O_RollCall: Stores roll call information after merging, with rollcall_id and emp_id
+CREATE TABLE O_RollCall (
+    rollcall_id INT,
+    emp_id INT,
+    PRIMARY KEY (rollcall_id, emp_id)
+);
+
+-- Table EMP: Stores employee information with employee number, department number, and salary
+CREATE TABLE EMP (
+    e_no INT PRIMARY KEY,
+    d_no INT,
+    salary DECIMAL(10, 2)
+);
+
+-- Table dept_salary: Stores department-wise average salary
+CREATE TABLE dept_salary (
+    d_no INT PRIMARY KEY,
+    avg_salary DECIMAL(10, 2)
+);
+
+
+
+
+
+-- Inserting data into N_RollCall table
+INSERT INTO N_RollCall (rollcall_id, emp_id, rollcall_date) VALUES (1, 1001, '2024-11-09');
+INSERT INTO N_RollCall (rollcall_id, emp_id, rollcall_date) VALUES (2, 1002, '2024-11-09');
+INSERT INTO N_RollCall (rollcall_id, emp_id, rollcall_date) VALUES (3, 1003, '2024-11-09');
+INSERT INTO N_RollCall (rollcall_id, emp_id, rollcall_date) VALUES (4, 1004, '2024-11-09');
+INSERT INTO N_RollCall (rollcall_id, emp_id, rollcall_date) VALUES (5, 1005, '2024-11-09');
+
+-- Inserting data into O_RollCall table (initially empty or with some existing data)
+INSERT INTO O_RollCall (rollcall_id, emp_id) VALUES (1, 1001);
+INSERT INTO O_RollCall (rollcall_id, emp_id) VALUES (2, 1002);
+
+-- Inserting data into EMP table
+INSERT INTO EMP (e_no, d_no, salary) VALUES (1001, 10, 5000);
+INSERT INTO EMP (e_no, d_no, salary) VALUES (1002, 20, 6000);
+INSERT INTO EMP (e_no, d_no, salary) VALUES (1003, 10, 5500);
+INSERT INTO EMP (e_no, d_no, salary) VALUES (1004, 20, 7000);
+INSERT INTO EMP (e_no, d_no, salary) VALUES (1005, 10, 4500);
+
+-- Insert a few more employees for a complete test case
+INSERT INTO EMP (e_no, d_no, salary) VALUES (1006, 30, 8000);
+INSERT INTO EMP (e_no, d_no, salary) VALUES (1007, 30, 9000);
+
+
+
+DELIMITER $$
+
+CREATE PROCEDURE MergeRollCallData(IN p_rollcall_date DATE)
+BEGIN
+    -- Declare variables
+    DECLARE v_rollcall_id INT;
+    DECLARE v_emp_id INT;
+    DECLARE v_check_exist INT DEFAULT 0;
+
+    -- Declare a cursor for the N_RollCall table
+    DECLARE n_rollcall_cursor CURSOR FOR
+        SELECT rollcall_id, emp_id
+        FROM N_RollCall
+        WHERE rollcall_date = p_rollcall_date;
+
+    -- Declare a continue handler to handle when no more rows are found
+    DECLARE CONTINUE HANDLER FOR NOT FOUND SET v_check_exist = 1;
+
+    -- Open the cursor
+    OPEN n_rollcall_cursor;
+
+    -- Loop through the cursor
+    read_loop: LOOP
+        FETCH n_rollcall_cursor INTO v_rollcall_id, v_emp_id;
+
+        -- Exit loop when no more records are found
+        IF v_check_exist THEN
+            LEAVE read_loop;
+        END IF;
+
+        -- Check if the record already exists in the O_RollCall table
+        SELECT COUNT(*) INTO v_check_exist
+        FROM O_RollCall
+        WHERE rollcall_id = v_rollcall_id
+          AND emp_id = v_emp_id;
+
+        -- If the record does not exist, insert it into O_RollCall
+        IF v_check_exist = 0 THEN
+            INSERT INTO O_RollCall (rollcall_id, emp_id)
+            VALUES (v_rollcall_id, v_emp_id);
+        END IF;
+
+        -- Reset the check exist flag for the next iteration
+        SET v_check_exist = 0;
+    END LOOP;
+
+    -- Close the cursor
+    CLOSE n_rollcall_cursor;
+
+    -- Optional: Output message for successful merge
+    SELECT 'Data merged successfully, skipped existing records.' AS status;
+END$$
+
+DELIMITER ;
+
+CALL MergeRollCallData('2024-11-09');
+
+
+
+
+DELIMITER $$
+
+CREATE PROCEDURE InsertDeptSalary()
+BEGIN
+    -- Declare variables to hold department number and average salary
+    DECLARE v_d_no INT;
+    DECLARE v_avg_salary DECIMAL(10, 2);
+    
+    -- Declare the cursor to fetch department-wise average salary
+    DECLARE dept_cursor CURSOR FOR
+        SELECT d_no, AVG(salary) AS avg_salary
+        FROM EMP
+        GROUP BY d_no;
+    
+    -- Declare a continue handler to handle when no more rows are found
+    DECLARE CONTINUE HANDLER FOR NOT FOUND SET @done = TRUE;
+
+    -- Open the cursor
+    OPEN dept_cursor;
+    
+    -- Loop through each department's salary data
+    read_loop: LOOP
+        -- Fetch department number and average salary
+        FETCH dept_cursor INTO v_d_no, v_avg_salary;
+        
+        -- Exit loop when no more records are found
+        IF @done THEN
+            LEAVE read_loop;
+        END IF;
+
+        -- Insert the department-wise average salary into the dept_salary table
+        INSERT INTO dept_salary (d_no, avg_salary)
+        VALUES (v_d_no, v_avg_salary);
+    END LOOP;
+    
+    -- Close the cursor
+    CLOSE dept_cursor;
+
+    -- Optional: Display a message indicating successful insert (can be done in MySQL)
+    SELECT 'Department-wise average salaries inserted successfully.' AS status;
+END$$
+
+DELIMITER ;
+
+
+
+CALL InsertDeptSalary();
+
+------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+
+
+Problem Statement 15 (Cursors)
+Consider the following schema for Products table.
+Products(Product_id, Product_Name, Product_Type, Price)
+1. Write a parameterized cursor to display all products in the given price range of price and type ‘Apparel’.
+Hint: Take the user input for minimum and maximum price for price range.
+2. Write an explicit cursor to display information of all products with Price greater than 5000.
+3. Write an implicit cursor to display the number of records affected by the update operation incrementing Price
+of all products by 1000.
+
+
+
+CREATE TABLE Products (
+    Product_id INT PRIMARY KEY,
+    Product_Name VARCHAR(100),
+    Product_Type VARCHAR(50),
+    Price DECIMAL(10,2)
+);
+
+
+
+DELIMITER $$
+
+CREATE PROCEDURE DisplayProductsInPriceRange(IN min_price DECIMAL(10,2), IN max_price DECIMAL(10,2))
+BEGIN
+    -- Declare variables to store fetched product data
+    DECLARE v_product_id INT;
+    DECLARE v_product_name VARCHAR(100);
+    DECLARE v_product_type VARCHAR(50);
+    DECLARE v_price DECIMAL(10,2);
+    
+    -- Declare the done flag for the cursor loop
+    DECLARE done INT DEFAULT FALSE;
+
+    -- Declare a cursor to fetch products in the 'Apparel' category within the given price range
+    DECLARE product_cursor CURSOR FOR
+        SELECT Product_id, Product_Name, Product_Type, Price
+        FROM Products
+        WHERE Product_Type = 'Apparel'
+        AND Price BETWEEN min_price AND max_price;
+
+    -- Declare a handler for when no more records are found in the cursor
+    DECLARE CONTINUE HANDLER FOR NOT FOUND SET done = TRUE;
+
+    -- Open the cursor
+    OPEN product_cursor;
+
+    -- Loop through the cursor and display products in the specified price range
+    read_loop: LOOP
+        FETCH product_cursor INTO v_product_id, v_product_name, v_product_type, v_price;
+
+        -- Exit loop when no more rows are found
+        IF done THEN
+            LEAVE read_loop;
+        END IF;
+
+        -- Display the fetched product details
+        SELECT v_product_id AS Product_ID, v_product_name AS Product_Name, v_product_type AS Product_Type, v_price AS Price;
+    END LOOP;
+
+    -- Close the cursor
+    CLOSE product_cursor;
+
+    -- Optional: Output a message indicating the procedure is complete
+    SELECT 'Products displayed successfully within the specified price range.' AS status;
+END$$
+
+DELIMITER ;
+
+
+CALL DisplayProductsInPriceRange(100, 500);
+
+
+
+DELIMITER $$
+
+CREATE PROCEDURE DisplayExpensiveProducts()
+BEGIN
+    -- Declare variables to store fetched product data
+    DECLARE v_product_id INT;
+    DECLARE v_product_name VARCHAR(100);
+    DECLARE v_product_type VARCHAR(50);
+    DECLARE v_price DECIMAL(10,2);
+
+    -- Declare the done flag for the cursor loop
+    DECLARE done INT DEFAULT FALSE;
+
+    -- Declare an explicit cursor to fetch products with a price greater than 5000
+    DECLARE product_cursor CURSOR FOR
+        SELECT Product_id, Product_Name, Product_Type, Price
+        FROM Products
+        WHERE Price > 5000;
+
+    -- Declare a handler for when no more records are found in the cursor
+    DECLARE CONTINUE HANDLER FOR NOT FOUND SET done = TRUE;
+
+    -- Open the cursor
+    OPEN product_cursor;
+
+    -- Loop through the cursor and display each product with price > 5000
+    read_loop: LOOP
+        FETCH product_cursor INTO v_product_id, v_product_name, v_product_type, v_price;
+
+        -- Exit loop when no more rows are found
+        IF done THEN
+            LEAVE read_loop;
+        END IF;
+
+        -- Display the fetched product details
+        SELECT v_product_id AS Product_ID, v_product_name AS Product_Name, v_product_type AS Product_Type, v_price AS Price;
+    END LOOP;
+
+    -- Close the cursor
+    CLOSE product_cursor;
+
+    -- Optional: Output a message indicating the procedure is complete
+    SELECT 'Displayed products with price greater than 5000.' AS status;
+END$$
+
+DELIMITER ;
+
+
+
+DELIMITER $$
+
+CREATE PROCEDURE UpdateProductPrices()
+BEGIN
+    -- Implicit cursor for the update operation
+    UPDATE Products
+    SET Price = Price + 1000;
+
+    -- Display the number of records affected using ROW_COUNT() (an implicit cursor function)
+    SELECT ROW_COUNT() AS Records_Affected;
+END$$
+
+DELIMITER ;
+
+-- Calling the procedure
+CALL UpdateProductPrices();
+
+
+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
